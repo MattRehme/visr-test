@@ -1,0 +1,14 @@
+replicaCount: 1
+
+webapp:
+  name: visr-test
+  group: visr-test
+  path: /
+  tls:
+    fqdn: visr-test.k8s.ucar.edu
+    # secretName: incommon-cert-#HOST
+  container: 
+    image: https://hub.docker.com/repository/docker/mattrncar/actix-docker-image
+    port: 8080
+    memory: 1G
+    cpu: 2
