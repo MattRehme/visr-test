@@ -6,7 +6,7 @@ webapp:
   path: /
   tls:
     fqdn: visr-test.k8s.ucar.edu
-    # secretName: incommon-cert-#HOST
+    secretName: incommon-cert-visr-test
   container: 
     image: https://hub.docker.com/repository/docker/mattrncar/actix-docker-image
     port: 8080
