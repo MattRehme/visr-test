@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+gunicorn
+numpy
+xarray
+netcdf4
+pyarrow
