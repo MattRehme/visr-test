@@ -5,3 +5,4 @@ To run locally:
 To push image to DockerHub:
 > docker tag visr-test-backend:latest docker.io/mattrncar/vist-test-backend:v2
 > docker push docker.io/mattrncar/vist-test-backend:v2
+
