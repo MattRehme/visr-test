@@ -1,6 +1,34 @@
-#__ MR ________________________________________________________________________
 *.swp
 .DS_Store
 ~*
+
 .git
+
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+.env*
+
+frontend-static
+
+.vite
+*.log
+
+logs
+tmp
+
+build
+dist
+
+node_modules
+
+
+# Development
+image?.png
+test_variable.png
+m.png
+t.png
+*.nc
 

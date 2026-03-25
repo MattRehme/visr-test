@@ -1,0 +1,21 @@
+{
+  "name": "atlas-maplibre",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ATLAS MapLibre Explorer",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "",
+  "devDependencies": {
+    "vite": "^7.1.5"
+  },
+  "dependencies": {
+    "apache-arrow": "^11.0.0",
+    "maplibre-gl": "^5.0.0"
+  }
+}

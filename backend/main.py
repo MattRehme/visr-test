@@ -1,164 +1,102 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware ##TEST
-from fastapi.staticfiles import StaticFiles ##TEST
-from io import BytesIO
-from netcdf_utils import *
 from pathlib import Path
-import numpy as np 
-import os
-
-# import pyarrow as pa
+import numpy as np
+import xarray as xr
+import pyarrow as pa
 import io
 
+NETCDF_DIR = "./data"
+NETCDF_FILE = "QTUV_pred_2025-07-02T00Z_001.nc"  # TODO: receive from client
+TIMESTEP = 0   # TODO: receive from client
+LEVEL = 12     # TODO: receive from client
 
+def netcdf_reader(netcdf_path):
+    return xr.open_dataset(netcdf_path)
 
-
-
+def get_variable_data(netcdf_data, variable_name):
+    variable = getattr(netcdf_data, variable_name)
+    return np.array(variable[TIMESTEP, LEVEL, :, :])
 
 app = FastAPI()
 
-
-##TEST Allow the browser to access the server directly for testing
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-
-
-
-
-
-##TODO Change this to CREDIT output dir
-NETCDF_DIR = "./data"
-
-
-
-@app.get("/get_data")
-def get_data():
-
-# def get_data(netcdf_file, variable_name, timestep, level):
-    ## TODO Get these from client ->
-    netcdf_file = "Q_pred_2025-07-02T00Z_001.nc"
-    variable_name = 'Q'
-    timestep = 0
-    level = 0
-    netcdf_path = Path(NETCDF_DIR, netcdf_file)
+@app.get("/get_data/{variable_name}")
+def get_data(variable_name: str):
+    netcdf_path = Path(NETCDF_DIR, NETCDF_FILE)
+    if not netcdf_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {NETCDF_FILE}")
 
     netcdf_data = netcdf_reader(netcdf_path)
 
     if variable_name == 'M':
-        u = get_variable_data(netcdf_data, 'U', timestep, level) 
-        v = get_variable_data(netcdf_data, 'V', timestep, level) 
-        variable_data = np.sqrt(u**2 + v**2)
-
+        u = get_variable_data(netcdf_data, 'U')
+        v = get_variable_data(netcdf_data, 'V')
+        variable_data = np.sqrt(np.maximum(0.0, u**2 + v**2))
+        data_min, data_max = 0.0, 50.0
+    elif variable_name == 'Q':
+        variable_data = get_variable_data(netcdf_data, variable_name)
+        data_min, data_max = 0.0, 0.02
     else:
-        variable_data = get_variable_data(
-                    netcdf_data, variable_name, timestep, level) 
+        try:
+            variable_data = get_variable_data(netcdf_data, variable_name)
+        except AttributeError:
+            raise HTTPException(status_code=400, detail=f"Variable '{variable_name}' not found in dataset")
+        data_min, data_max = float(variable_data.min()), float(variable_data.max())
 
+    # -- Get lat/lon coordinate arrays, normalise lon to -180→180 --------------
+    lat_arr = np.array(netcdf_data.latitude, dtype=np.float32)
+    lon_arr = np.array(netcdf_data.longitude, dtype=np.float32)
 
+    # Roll 0→360 longitude to -180→180 so the mesh aligns with Mercator
+    if lon_arr.max() > 180:
+        split = np.searchsorted(lon_arr, 180)
+        lon_arr = np.concatenate([lon_arr[split:] - 360, lon_arr[:split]])
+        variable_data = np.concatenate([variable_data[:, split:], variable_data[:, :split]], axis=1)
 
+    lat_hex = lat_arr.tobytes().hex()
+    lon_hex = lon_arr.tobytes().hex()
 
-
-    #-- Send NumPy Array ------------------------------------------------------
-
-    # arrayBuffer = io.BytesIO()
-    # np.save(arrayBuffer, variable_data)
-    # arrayBuffer.seek(0)
-
-    # return StreamingResponse(
-        # arrayBuffer,
-        # media_type="application/octet-stream"
-    # )
-
-
-
-
-
-
-    #-- Send JSON -------------------------------------------------------------
-
-    test_data = {
-            "variable name:": variable_name,
-            "netcdf file:": netcdf_file,
-            "some values:": variable_data.flatten().tolist()[0:10]
-            # "1": 1
-    }
-
-    return test_data
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    """
-    #-- Send array with Apache Arrow ------------------------------------------
-
-    # NOTE Might be able to send Zarr files directly from
-        # CREDIT output to the client
-
-
-    stream = io.BytesIO()
-
-    table = pa.table({'variable_data': variable_data.flatten()})
-
-    # Metadata for client
-    ##TODO Add netcdf info later
-    rows, cols = variable_data.shape
-
+    # -- Send array with Apache Arrow ------------------------------------------
+    n_lat, n_lon = variable_data.shape
+    table = pa.table({
+        'variable_data': variable_data.flatten().astype(np.float32),
+    })
     table = table.replace_schema_metadata({
-        "rows": str(rows),
-        "cols": str(cols),
+        "variable_name": variable_name,
+        "n_lat": str(n_lat),
+        "n_lon": str(n_lon),
+        "data_min": str(data_min),
+        "data_max": str(data_max),
+        "lat": lat_hex,
+        "lon": lon_hex,
     })
 
+    stream = io.BytesIO()
     with pa.ipc.new_stream(stream, table.schema) as writer:
         writer.write_table(table)
-
     stream.seek(0)
 
     return StreamingResponse(
-        stream, media_type="application/vnd.apache.arrow.stream")
+        stream,
+        media_type="application/vnd.apache.arrow.stream",
+    )
 
-
-    """
-
-
-
-
-
-
-    # m255 = normalize(m, (0, 182), (0, 255), True)
-    # m8 = np.around(m255).astype(np.uint8)
-
-    # Save the image to a BytesIO object (in memory)
-    # img_byte_arr = BytesIO()
-    # img.save(img_byte_arr, format="PNG")
-    # img_byte_arr.seek(0)
-
-    # Return the image in the response
-    # return Response(content=img_byte_arr.read(), media_type="image/png")
-
-
-
-
-##TEST Client
-dist_path = os.path.join(os.path.dirname(__file__), "client/dist")
-if os.path.exists(dist_path):
-    app.mount("/", StaticFiles(directory=dist_path, html=True), name="static")
-
-
-
+@app.get("/debug")
+def debug():
+    netcdf_path = Path(NETCDF_DIR, NETCDF_FILE)
+    ds = netcdf_reader(netcdf_path)
+    lat = np.array(ds.latitude, dtype=np.float32)
+    lon = np.array(ds.longitude, dtype=np.float32)
+    return {
+        "lat_len": len(lat),
+        "lon_len": len(lon),
+        "lat_min": float(lat.min()),
+        "lat_max": float(lat.max()),
+        "lat_first": float(lat[0]),
+        "lat_last": float(lat[-1]),
+        "lon_min": float(lon.min()),
+        "lon_max": float(lon.max()),
+        "lon_first": float(lon[0]),
+        "lon_last": float(lon[-1]),
+        "variables": list(ds.data_vars),
+    }
