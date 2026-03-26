@@ -8,12 +8,12 @@ services:
     ports:
       - "8000:8000"
 
-  map-viewer-nginx:
+  map-viewer-frontend:
     build:
       context: .
       dockerfile: nginx/Dockerfile
     platform: linux/amd64
-    container_name: map-viewer-nginx
+    container_name: map-viewer-frontend
     ports:
       - "8080:80"
     depends_on:
