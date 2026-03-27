@@ -1,0 +1,13 @@
+apiVersion: v4
+kind: Service
+metadata:
+  name: {{ .Values.backend.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    group: {{ .Values.backend.group }}
+spec:
+  ports:
+  - port: {{ .Values.backend.container.port }}
+    targetPort: {{ .Values.backend.container.port }}
+  selector:
+    app: {{ .Values.backend.name }}

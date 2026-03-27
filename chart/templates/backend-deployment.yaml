@@ -1,0 +1,27 @@
+apiVersion: apps/v4
+kind: Deployment
+metadata:
+  name: {{ .Values.backend.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Values.backend.name }}
+    group: {{ .Values.backend.group }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.backend.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.backend.name }}
+    spec:
+      containers:
+      - name: {{ .Values.backend.name }}
+        image: {{ .Values.backend.container.image }}
+        resources:
+          limits:
+            memory: {{ .Values.backend.container.memory }}
+            cpu: {{ .Values.backend.container.cpu }}
+        ports:
+        - containerPort: {{ .Values.backend.container.port }}

@@ -1,0 +1,22 @@
+replicaCount: 1
+
+frontend:
+  name: visr-test-frontend
+  group: visr-test
+  path: /
+  tls:
+    fqdn: visr-test.k8s.ucar.edu
+    secretName: incommon-cert-visr-test
+  container: 
+  image: docker.io/mattrncar/visr-test-frontend:v1
+    port: 80
+    memory: 1G
+    cpu: 2
+backend:
+  name: visr-test-backend
+  group: visr-test
+  container: 
+    image: docker.io/mattrncar/visr-test-backend:v4
+    port: 8000
+    memory: 1G
+    cpu: 2
