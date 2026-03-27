@@ -1,20 +1,20 @@
 services:
-  map-viewer-backend:
+  backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
     platform: linux/amd64
-    container_name: map-viewer-backend
+    container_name: backend
     ports:
       - "8000:8000"
 
-  map-viewer-frontend:
+  frontend:
     build:
       context: .
       dockerfile: nginx/Dockerfile
     platform: linux/amd64
-    container_name: map-viewer-frontend
+    container_name: frontend
     ports:
       - "8080:80"
     depends_on:
-      - map-viewer-backend
+      - backend
