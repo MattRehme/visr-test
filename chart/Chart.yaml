@@ -1,6 +1,6 @@
 apiVersion: v4
 name: visr-test
-description: A Helm chart for visr-test
+description: An interactive map client test
 
 # A chart can be either an 'application' or a 'library' chart.
 #
