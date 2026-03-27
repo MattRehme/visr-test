@@ -1,4 +1,4 @@
-apiVersion: v4
+apiVersion: v1
 name: visr-test
 description: An interactive map client test
 
